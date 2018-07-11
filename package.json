@@ -1,12 +1,13 @@
 {
   "name": "bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "To je Blažev discord bot muahahaha",
+  "repository": "https://github.com/zupanibla/discord-bot",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "author": "Balž",
   "license": "ISC",
   "dependencies": {
     "discord.js": "^11.3.2",
