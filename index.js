@@ -1,5 +1,9 @@
+const path = require('path');
 const client = new (require('discord.js').Client)();
-const {botToken, soundsPath} = require('./config.json');
+let {botToken, soundsPath} = require('./config.json');
+
+if (!path.isAbsolute(soundsPath))
+	soundsPath = path.join(__dirname, soundsPath);
 
 
  // load soundboard bot
