@@ -1,13 +1,14 @@
 module.exports = (discordClient, soundsPath) => {
 
-const {findSoundFile, soundCodeFromMessage, soundList, stopPlayback, voiceChannelFromMessage} = require('./util.js')(soundsPath);
+const {findSoundFile, soundCodeFromMessage, soundList, stopPlayback, voiceChannelFromMessage, splitTooLongMessage} = require('./util.js')(soundsPath);
 
 
 // command message handler
 discordClient.on('message', msg => {
 
     if ( ['list', 'help', 'listcommands', 'sounds', 'listsounds'].includes(msg.content) )
-        msg.reply(soundList());
+        splitTooLongMessage(soundList()).forEach( part => msg.reply(part) );
+    
 
     if ( ['stop', 'skip'].includes(msg.content) )
         if (voiceChannelFromMessage(msg)) stopPlayback(voiceChannelFromMessage(msg))

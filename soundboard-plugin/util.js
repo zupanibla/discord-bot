@@ -26,8 +26,9 @@ function stopPlayback(voiceChannel, reason='') {
 
 const voiceChannelFromMessage = msg => (msg.member && msg.member.voiceChannel) ? msg.member.voiceChannel : null;
 
+const splitTooLongMessage = msg => msg.match(/(.{1,1990}(\s|$))\s*/g);
 
-return {findSoundFile, soundCodeFromMessage, soundList, stopPlayback, voiceChannelFromMessage};
+return {findSoundFile, soundCodeFromMessage, soundList, stopPlayback, voiceChannelFromMessage, splitTooLongMessage};
 
 
 };
