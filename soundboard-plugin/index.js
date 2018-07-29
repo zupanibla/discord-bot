@@ -17,7 +17,11 @@ discordClient.on('message', msg => {
  // sound code message handler
 discordClient.on('message', msg => {
 
-    let filePath = findSoundFile( soundCodeFromMessage(msg.content) );
+    let soundCode = soundCodeFromMessage(msg.content);
+
+    if (!soundCode) return;
+
+    let filePath = findSoundFile( soundCode );
 
     if (voiceChannelFromMessage(msg) && filePath)
         voiceChannelFromMessage(msg).join()
