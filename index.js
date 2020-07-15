@@ -1,12 +1,14 @@
 console.log('Node version: ' + process.version);
 
+const fs   = require('fs');
+const path = require('path');
+
 if (process.argv.length != 4) {
     console.log('Two positional arguments required: <bot token> <sound files path>');
 }
 const botToken       = process.argv[2];
 const soundFilesPath = process.argv[3];
 
-const fs = require('fs');
 const client = new (require('discord.js').Client)();
 
  // command message handler
@@ -44,10 +46,10 @@ client.on('message', msg => {
     // find sound file
     let soundFilePath = null;
 
-    let pathBase = soundFilesPath + '/' + soundName;
-    for (it of [pathBase, pathBase + '.ogg', pathBase + '.mp3']) {
-        if (fs.existsSync(it)) {
-            soundFilePath = it;
+    for (it of [soundName, soundName + '.ogg', soundName + '.mp3']) {
+        soundFilePathCandidate = path.join(soundFilesPath, it);
+        if (fs.existsSync(soundFilePathCandidate)) {
+            soundFilePath = soundFilePathCandidate;
             break;
         }
     }
