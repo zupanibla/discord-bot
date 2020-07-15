@@ -72,7 +72,9 @@ typings/
 # Serverless directories
 .serverless
 
+sounds
 sounds/*
 config.json
 BOT_TOKEN.json
+package-lock.json
 
