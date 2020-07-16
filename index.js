@@ -1,14 +1,23 @@
+// log node version
 console.log('Node version: ' + process.version);
 
-const fs   = require('fs');
-const path = require('path');
+// imports
+const fs       = require('fs');
+const path     = require('path');
+const hound    = require('hound');
 
+// args
 if (process.argv.length != 4) {
     console.log('Two positional arguments required: <bot token> <sound files path>');
 }
 const botToken       = process.argv[2];
 const soundFilesPath = process.argv[3];
 
+// watch sound files dir for new sounds with Hound
+let watcher = hound.watch(soundFilesPath);
+watcher.on('create', (file, stats) => console.log(file, 'created!'));
+
+// instantiate Discord client
 const client = new (require('discord.js').Client)();
 
  // command message handler
@@ -24,7 +33,7 @@ client.on('message', msg => {
     
     if ( ['stop', 'skip'].includes(msg.content) ) {
         if (msg.guild.me.voice.connection && msg.guild.me.voice.connection.dispatcher) {
-            console.log("stopping")
+            console.log("stopping");
             msg.guild.me.voice.connection.dispatcher.pause();
         }
     }
