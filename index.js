@@ -106,7 +106,7 @@ let watcher = hound.watch(soundFilesPath);
 watcher.on('create', (filePath, stats) => {
     console.log(filePath, 'created!');
     if (lastVoiceChannel && lastTextChannel) {
-        let fileName = filePath.split('//')[1]; 
+        let fileName = filePath.split('/').pop();
         playSound(lastVoiceChannel, path.join(soundFilesPath, NEW_SOUND_NOTIFICATION_SOUND));
         lastTextChannel.send(`Your precious ${fileName}, gratefully accepted! We will need it.`).catch(console.error);
     }
