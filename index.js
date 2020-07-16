@@ -49,7 +49,7 @@ client.on('message', msg => {
 
     if ( ['bot pejt stran', 'bot odstran se', 'dc', 'leave'].includes(msg.content) ) {
         // leave voice channel
-        if (msg.guild.me.voice.channel) {
+        if (msg.guild && msg.guild.me && msg.guild.me.voice.channel) {
             msg.guild.me.voice.channel.leave();
         }
     }
