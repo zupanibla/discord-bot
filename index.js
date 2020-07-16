@@ -40,7 +40,8 @@ client.on('message', msg => {
     
     if ( ['stop', 'skip'].includes(msg.content) ) {
         // stop audio playback
-        if (msg.guild.me.voice.connection && msg.guild.me.voice.connection.dispatcher) {
+        if (msg.guild && msg.guild.me && msg.guild.me.voice &&
+            msg.guild.me.voice.connection && msg.guild.me.voice.connection.dispatcher) {
             console.log("stopping");
             msg.guild.me.voice.connection.dispatcher.pause();
         }
