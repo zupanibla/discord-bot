@@ -1,10 +1,12 @@
 // log node version
 console.log('Node version: ' + process.version);
 
+
 // imports
 const fs       = require('fs');
 const path     = require('path');
 const hound    = require('hound');
+
 
 // args
 if (process.argv.length != 4) {
@@ -13,17 +15,16 @@ if (process.argv.length != 4) {
 const botToken       = process.argv[2];
 const soundFilesPath = process.argv[3];
 
-// watch sound files dir for new sounds with Hound
-let watcher = hound.watch(soundFilesPath);
-watcher.on('create', (file, stats) => console.log(file, 'created!'));
-
-// instantiate Discord client
-const client = new (require('discord.js').Client)();
 
 // notifications are sent via the channels bellow
 // they should at least update when a sound is played
 let lastTextChannel  = null;
 let lastVoiceChannel = null;
+
+
+// instantiate Discord client
+const client = new (require('discord.js').Client)();
+
 
  // command message handler
 client.on('message', msg => {
@@ -53,6 +54,19 @@ client.on('message', msg => {
     }
 });
 
+
+function playSound(voiceChannel, soundFilePath) {
+    console.log('attempting to play ' + soundFilePath);
+    voiceChannel.join()
+      .then(con => {
+          const dispatcher = con.play(soundFilePath);
+          dispatcher.on('start', _ => console.log('started playing'));
+          dispatcher.on('error', err => console.log);
+      })
+      .catch(console.error);
+}
+
+
  // soundboard message handler
 client.on('message', msg => {
     // to play a sound we need a voice channel
@@ -80,14 +94,21 @@ client.on('message', msg => {
         lastTextChannel  = msg.channel;
 
         // play the sound
-        console.log('attempting to play ' + soundFilePath);
-        voiceChannel.join()
-          .then(con => {
-              const dispatcher = con.play(soundFilePath);
-              dispatcher.on('start', _ => console.log('!start'));
-              dispatcher.on('error', err => console.log);
-          })
-          .catch(console.error);
+        playSound(voiceChannel, soundFilePath);
+    }
+});
+
+
+// watch sound files dir for new sounds with Hound
+const NEW_SOUND_NOTIFICATION_SOUND = 'hereyougo.ogg';
+
+let watcher = hound.watch(soundFilesPath);
+watcher.on('create', (filePath, stats) => {
+    console.log(filePath, 'created!');
+    if (lastVoiceChannel && lastTextChannel) {
+        let fileName = filePath.split('//')[1]; 
+        playSound(lastVoiceChannel, path.join(soundFilesPath, NEW_SOUND_NOTIFICATION_SOUND));
+        lastTextChannel.send(`Your precious ${fileName}, gratefully accepted! We will need it.`).catch(console.error);
     }
 });
 
