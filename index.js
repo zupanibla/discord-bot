@@ -71,8 +71,15 @@ function playSound(voiceChannel, soundFilePath) {
  // soundboard message handler
 client.on('message', msg => {
     // to play a sound we need a voice channel
-    if (!(msg.member && msg.member.voice.channel)) return;
-    let voiceChannel = msg.member.voice.channel;
+    // first try using users voice channel, then fall back to last used voice channel else return
+    let voiceChannel;
+    if (msg.member && msg.member.voice.channel) {
+        voiceChannel = msg.member.voice.channel;
+    } else if (lastVoiceChannel) {
+        voiceChannel = lastVoiceChannel;
+    } else {
+        return;
+    }
 
     // attempt to fetch soundName from message (to lowercase, remove non alphanumeric)
     let soundName = msg.content.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '');
@@ -92,7 +99,9 @@ client.on('message', msg => {
     if (soundFilePath) {
         // record used voice and text channel for notifications
         lastVoiceChannel = voiceChannel;
-        lastTextChannel  = msg.channel;
+        if (msg.channel) {
+            lastTextChannel = msg.channel;
+        }
 
         // play the sound
         playSound(voiceChannel, soundFilePath);
