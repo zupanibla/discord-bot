@@ -54,6 +54,13 @@ client.on('message', msg => {
         }
     }
 
+    if ( ['leavelast'].includes(msg.content) ) {
+        // leave lastVoiceChannel
+        if (lastVoiceChannel) {
+            lastVoiceChannel.leave();
+        }
+    }
+
     if ( msg.content.startsWith('echo ') ) {
         // send a message to lastVoiceChannel
         if (lastVoiceChannel) {
