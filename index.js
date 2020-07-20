@@ -53,6 +53,13 @@ client.on('message', msg => {
             msg.guild.me.voice.channel.leave();
         }
     }
+
+    if ( msg.content.startsWith('echo ') ) {
+        // send a message to lastVoiceChannel
+        if (lastVoiceChannel) {
+            lastTextChannel.send(msg.content.substring('echo '.length)).catch(console.error);
+        }
+    }
 });
 
 
