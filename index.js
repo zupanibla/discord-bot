@@ -63,13 +63,13 @@ client.on('message', msg => {
 	}
 
 	if ( msg.content.startsWith('echo ') ) {
-		// send a message to lastVoiceChannel
-		if (lastVoiceChannel) {
+		// send a message to lastTextChannel
+		if (lastTextChannel) {
 			lastTextChannel.send(msg.content.substring('echo '.length)).catch(console.error);
 		}
 	}
 
-	if (['listlatest', 'list latest'].includes(msg.content)) {
+	if ( ['listlatest', 'list latest'].includes(msg.content) ) {
 		// replies with 10 latest files from 'soundFilesPath' and their creation dates
 		// TODO creation date vs added to bot date
 		let sortedFileList =
@@ -110,7 +110,7 @@ client.on('message', msg => {
           })
           .catch(console.error);
     }
-    
+
     // to play a sound we need a voice channel
     // first try using users voice channel, then fall back to last used voice channel else return
     let voiceChannel;
