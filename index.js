@@ -26,8 +26,9 @@ let lastVoiceChannel = null;
 const client = new (require('discord.js').Client)();
 
 
- // command message handler
 client.on('message', msg => {
+
+    // COMMANDS
 	if ( ['list', 'help', 'listcommands', 'sounds', 'listsounds'].includes(msg.content) ) {
 		// list sounds contained in the sound files directory (possibly in multiple messages)
 		// TODO check how this behaves with duplicates (e.g. a.mp3, a.ogg)
@@ -97,59 +98,55 @@ client.on('message', msg => {
 			.join('\n')
 		);
 	}
-});
 
+    // SOUNDBOARD
+    function playSound(voiceChannel, soundFilePath) {
+        console.log('attempting to play ' + soundFilePath);
+        voiceChannel.join()
+          .then(con => {
+              const dispatcher = con.play(soundFilePath);
+              dispatcher.on('start', _ => console.log('started playing'));
+              dispatcher.on('error', err => console.log);
+          })
+          .catch(console.error);
+    }
+    
+    // to play a sound we need a voice channel
+    // first try using users voice channel, then fall back to last used voice channel else return
+    let voiceChannel;
+    if (msg.member && msg.member.voice.channel) {
+        voiceChannel = msg.member.voice.channel;
+    } else if (lastVoiceChannel) {
+        voiceChannel = lastVoiceChannel;
+    } else {
+        return;
+    }
 
-function playSound(voiceChannel, soundFilePath) {
-	console.log('attempting to play ' + soundFilePath);
-	voiceChannel.join()
-	  .then(con => {
-		  const dispatcher = con.play(soundFilePath);
-		  dispatcher.on('start', _ => console.log('started playing'));
-		  dispatcher.on('error', err => console.log);
-	  })
-	  .catch(console.error);
-}
+    // attempt to fetch soundName from message (to lowercase, remove non alphanumeric)
+    let soundName = msg.content.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '');
+    if (!soundName) return;
 
+    // attempt to find the corresponding sound file
+    let soundFilePath = null;
+    for (it of [soundName, soundName + '.ogg', soundName + '.mp3']) {
+        soundFilePathCandidate = path.join(soundFilesPath, it);
+        if (fs.existsSync(soundFilePathCandidate)) {
+            soundFilePath = soundFilePathCandidate;
+            break;
+        }
+    }
 
- // soundboard message handler
-client.on('message', msg => {
-	// to play a sound we need a voice channel
-	// first try using users voice channel, then fall back to last used voice channel else return
-	let voiceChannel;
-	if (msg.member && msg.member.voice.channel) {
-		voiceChannel = msg.member.voice.channel;
-	} else if (lastVoiceChannel) {
-		voiceChannel = lastVoiceChannel;
-	} else {
-		return;
-	}
+    // if a sound file was found ...
+    if (soundFilePath) {
+        // record used voice and text channel for notifications
+        lastVoiceChannel = voiceChannel;
+        if (msg.channel) {
+            lastTextChannel = msg.channel;
+        }
 
-	// attempt to fetch soundName from message (to lowercase, remove non alphanumeric)
-	let soundName = msg.content.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '');
-	if (!soundName) return;
-
-	// attempt to find the corresponding sound file
-	let soundFilePath = null;
-	for (it of [soundName, soundName + '.ogg', soundName + '.mp3']) {
-		soundFilePathCandidate = path.join(soundFilesPath, it);
-		if (fs.existsSync(soundFilePathCandidate)) {
-			soundFilePath = soundFilePathCandidate;
-			break;
-		}
-	}
-
-	// if a sound file was found ...
-	if (soundFilePath) {
-		// record used voice and text channel for notifications
-		lastVoiceChannel = voiceChannel;
-		if (msg.channel) {
-			lastTextChannel = msg.channel;
-		}
-
-		// play the sound
-		playSound(voiceChannel, soundFilePath);
-	}
+        // play the sound
+        playSound(voiceChannel, soundFilePath);
+    }
 });
 
 
