@@ -44,14 +44,14 @@ function handleCommands(msg, textChannel, voiceChannel) {
         }
     }
 
-    else if ( ['bot pejt stran', 'bot odstran se', 'dc', 'leave'].includes(msg.content) ) {
+    else if ( ['dc', 'leave', 'bot pejt stran', 'bot odstran se'].includes(msg.content) ) {
         // leave voice channel
         if (msg.guild && msg.guild.me && msg.guild.me.voice.channel) {
             msg.guild.me.voice.channel.leave();
         }
     }
 
-    else if ( ['leavelast'].includes(msg.content) ) {
+    else if ( ['dclast', 'leavelast'].includes(msg.content) ) {
         // leave lastVoiceChannel
         if (lastVoiceChannel) {
             lastVoiceChannel.leave();
