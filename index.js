@@ -39,7 +39,7 @@ function handleCommands(msg, textChannel, voiceChannel) {
         // stop audio playback
         if (msg.guild && msg.guild.me && msg.guild.me.voice &&
             msg.guild.me.voice.connection && msg.guild.me.voice.connection.dispatcher) {
-            console.log("stopping");
+            console.log('stopping');
             msg.guild.me.voice.connection.dispatcher.pause();
         }
     }
@@ -139,12 +139,13 @@ function handleSoundboardMessages(msg, msgChannel, voiceChannel) {
     return true;
 }
 
-
 // instantiate Discord client
-const client = new (require('discord.js').Client)();
+let Discord = require('discord.js');
+let client  = new Discord.Client();
+
 
 client.on('message', msg => {
-    // to play sounds we first need a voice channel
+     // to play sounds we first need a voice channel
     // try using user's voice channel, then fall back to last used voice channel
     let voiceChannel = null;
     if (msg.member && msg.member.voice.channel) {
@@ -162,6 +163,8 @@ client.on('message', msg => {
         textChannel = lastTextChannel;
     }
 
+    
+
     let commandTriggered    = handleCommands(msg, textChannel, voiceChannel);
     let soundboardTriggered = handleSoundboardMessages(msg, textChannel, voiceChannel);
     
@@ -174,6 +177,36 @@ client.on('message', msg => {
             lastTextChannel = msg.channel;
         }
     }
+
+    // WIP
+    if (soundboardTriggered) {
+        msg.react('⏹️');
+        function registerStopHandler() {
+            msg.awaitReactions((r, u) => r.emoji.name === '⏹️' && !u.bot, { max: 1 })
+                .then(collected => {
+                    registerStopHandler();
+                    // stop audio playback
+                    if (msg.guild && msg.guild.me && msg.guild.me.voice &&
+                        msg.guild.me.voice.connection && msg.guild.me.voice.connection.dispatcher) {
+                        console.log('stopping');
+                        msg.guild.me.voice.connection.dispatcher.pause();
+                    }
+                });
+        }
+        registerStopHandler();
+        msg.react('🔁');
+        function registerRepeatHandler() {
+            msg.awaitReactions((r, u) => r.emoji.name === '🔁' && !u.bot, { max: 1 })
+                .then(collected => {
+                    registerRepeatHandler();
+                    // TODO currently repeats on same voice channel it was first triggered on
+                    // TODO calling handleSoundboardMessages is not very elegant 
+                    handleSoundboardMessages(msg, textChannel, voiceChannel);  // TODO if voiceChannel gets deleted we are in trouble
+                });
+        }
+        registerRepeatHandler();
+    }
+    // /WIP
 });
 
 
