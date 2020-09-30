@@ -24,7 +24,7 @@ let lastVoiceChannel = null;
 
 // triggers a command if msg matches one
 // returns true if message was a command, false otherwise
-function handleCommands(msg, textChannel, voiceChannel) {
+async function handleCommands(msg, textChannel, voiceChannel) {
     if ( ['list', 'help', 'listcommands', 'sounds', 'listsounds'].includes(msg.content) ) {
         // list sounds contained in the sound files directory (possibly in multiple messages)
         // TODO check how this behaves with duplicates (e.g. a.mp3, a.ogg)
@@ -94,6 +94,34 @@ function handleCommands(msg, textChannel, voiceChannel) {
             .join('\n')
         );
     }
+    else if (msg.content.startsWith('makesoundboard ')) {
+        // makes a soundboard - message with react buttons that trigger sounds
+        let args = msg.content.substring('makesoundboard '.length).split(',');
+        
+        // TODO verify args (throws if emoji doesn't exist)
+        // message should be: make soundboard <message> (<sound>, <emoji> )
+
+        let soundboardMessage = await msg.channel.send(args[0]);
+
+        for (let i = 2; i < args.length; i += 2) {
+            let soundName = args[i-1];
+            let emoji = args[i].replace(/\s/g, '');
+
+            soundboardMessage.react(emoji);
+            function registerReactionHandler() {
+                soundboardMessage.awaitReactions((r, u) => r.emoji.name === emoji && !u.bot, { max: 1 })
+                    .then(collected => {
+                        registerReactionHandler();
+                        // TODO currently repeats on provided voice channel. is this ok?
+                        // TODO calling handleSoundboardMessages is not very elegant 
+                        // TODO handleSoundboardMessages should probably be responsible for replay/stop buttons
+                        // TODO probably the way to do this is to have a separate function for parsing sound names
+                        handleSoundboardMessages({content: soundName}, textChannel, voiceChannel);  // TODO if voiceChannel gets deleted we are in trouble
+                    });
+            }
+            registerReactionHandler();
+        }
+    }
     else return false;
     return true;
 }
@@ -109,6 +137,7 @@ function playSound(voiceChannel, soundFilePath) {
       })
       .catch(console.error);
 }
+
 
 // plays a sound if msg matches a sound file and voiceChannel is present
 // returns true if a sound was played, false otherwise
@@ -135,6 +164,7 @@ function handleSoundboardMessages(msg, msgChannel, voiceChannel) {
     // if a sound file was found ...
     // play the sound
     playSound(voiceChannel, soundFilePath);
+
 
     return true;
 }
