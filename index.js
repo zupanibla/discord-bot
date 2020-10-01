@@ -96,6 +96,7 @@ async function handleCommands(msg, textChannel, voiceChannel) {
     }
     else if (msg.content.startsWith('makesoundboard ')) {
         // makes a soundboard - message with react buttons that trigger sounds
+        // TODO somehow refresh soundboard when bot reconnects, staticly bound vc doesn't feel good
         let args = msg.content.substring('makesoundboard '.length).split(',');
         
         // TODO verify args (throws if emoji doesn't exist)
@@ -106,6 +107,12 @@ async function handleCommands(msg, textChannel, voiceChannel) {
         for (let i = 2; i < args.length; i += 2) {
             let soundName = args[i-1];
             let emoji = args[i].replace(/\s/g, '');
+
+            // extract id if emoji is custom (e.g. "<:hikaru8:716765583915483159>")
+            if (emoji[0] == '<') {
+                emoji = emoji.match(/<:[^:]+:([0-9]+)>/)[1];
+            }
+            console.log(emoji);
 
             soundboardMessage.react(emoji);
             function registerReactionHandler() {
