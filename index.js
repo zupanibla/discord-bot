@@ -110,6 +110,7 @@ async function handleCommands(msg, textChannel, voiceChannel) {
 
             // extract id if emoji is custom (e.g. "<:hikaru8:716765583915483159>")
             let match = emoji.match(/<:[^:]+:([0-9]+)>/);
+            console.log(match);
             if (match.length) {
                 emoji = match[1];
             }
@@ -120,10 +121,8 @@ async function handleCommands(msg, textChannel, voiceChannel) {
                     .then(collected => {
                         registerReactionHandler();
                         // TODO currently repeats on provided voice channel. is this ok?
-                        // TODO calling handleSoundboardMessages is not very elegant 
-                        // TODO handleSoundboardMessages should probably be responsible for replay/stop buttons
-                        // TODO probably the way to do this is to have a separate function for parsing sound names
-                        handleSoundboardMessages({content: soundName}, textChannel, voiceChannel);  // TODO if voiceChannel gets deleted we are in trouble
+                        attemptPlayingSoundFromText(soundName, voiceChannel);
+                        // TODO if voiceChannel gets deleted we are in trouble
                     });
             }
             registerReactionHandler();
@@ -177,26 +176,10 @@ function attemptPlayingSoundFromText(text, voiceChannel) {
 function handleSoundboardMessages(msg, msgChannel, voiceChannel) {
     if (!voiceChannel) return false;
 
-    // attempt to fetch soundName from message (to lowercase, remove non alphanumeric)
-    let soundName = msg.content.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '');
-    if (!soundName) return false;
+    let soundPlayed = attemptPlayingSoundFromText(msg.content, voiceChannel);
 
-    // attempt to find the corresponding sound file
-    let soundFilePath = null;
+    if (!soundPlayed) return false;
 
-    for (it of [soundName, soundName + '.ogg', soundName + '.mp3']) {
-        soundFilePathCandidate = path.join(soundFilesPath, it);
-        if (fs.existsSync(soundFilePathCandidate)) {
-            soundFilePath = soundFilePathCandidate;
-            break;
-        }
-    }
-
-    if (!soundFilePath) return false;
-
-    // if a sound file was found ...
-    // play the sound
-    playSound(voiceChannel, soundFilePath);
     msg.react('⏹️');
     msg.react('🔁');  // TODO may arrive in wrong order
 
