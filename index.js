@@ -109,10 +109,10 @@ async function handleCommands(msg, textChannel, voiceChannel) {
             let emoji = args[i].replace(/\s/g, '');
 
             // extract id if emoji is custom (e.g. "<:hikaru8:716765583915483159>")
-            if (emoji[0] == '<') {
-                emoji = emoji.match(/<:[^:]+:([0-9]+)>/)[1];
+            let match = emoji.match(/<:[^:]+:([0-9]+)>/);
+            if (match.length) {
+                emoji = match[1];
             }
-            console.log(emoji);
 
             soundboardMessage.react(emoji);
             function registerReactionHandler() {
@@ -143,6 +143,32 @@ function playSound(voiceChannel, soundFilePath) {
           dispatcher.on('error', err => console.log);
       })
       .catch(console.error);
+}
+
+// tries to map text to a sound file from soundFilesPath and play it in voiceChannel
+function attemptPlayingSoundFromText(text, voiceChannel) {
+    // attempt to fetch soundName from message (to lowercase, remove non alphanumeric)
+    let soundName = text.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '');
+    if (!soundName) return false;
+
+    // attempt to find the corresponding sound file
+    let soundFilePath = null;
+
+    for (it of [soundName, soundName + '.ogg', soundName + '.mp3']) {
+        soundFilePathCandidate = path.join(soundFilesPath, it);
+        if (fs.existsSync(soundFilePathCandidate)) {
+            soundFilePath = soundFilePathCandidate;
+            break;
+        }
+    }
+
+    if (!soundFilePath) return false;
+
+    // if a sound file was found ...
+    // play the sound
+    playSound(voiceChannel, soundFilePath);
+
+    return true;
 }
 
 
@@ -176,9 +202,57 @@ function handleSoundboardMessages(msg, msgChannel, voiceChannel) {
     return true;
 }
 
-// instantiate Discord client
+// instantiate Discord client ('MESSAGE', 'CHANNEL', 'REACTION' partials needed for global reaction listening)
 let Discord = require('discord.js');
-let client  = new Discord.Client();
+let client  = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
+
+
+// play sound on 🔁 react and stop playing on ⏹️
+client.on('messageReactionAdd', async (react, user) => {
+
+    // When we receive a reaction we check if the reaction is partial or not
+    if (react.partial) {
+        // If the message this reaction belongs to was removed the fetching might result in an API error, which we need to handle
+        try {
+            await react.fetch();
+        } catch (error) {
+            console.error('Something went wrong when fetching the message: ', error);
+            // Return as `react.message.author` may be undefined/null
+            return;
+        }
+    }
+
+    // prevent bots triggering commands
+    if (user.bot) return;
+    // ignore private messages
+    if (!react.message.guild) return;
+
+    let guild = react.message.guild;
+
+    if (react.emoji.name === '⏹️') {
+        // stop audio playback
+        if (guild.me && guild.me.voice &&
+            guild.me.voice.connection && guild.me.voice.connection.dispatcher) {
+            console.log('stopping');
+            guild.me.voice.connection.dispatcher.pause();
+        }
+    } else if (react.emoji.name === '🔁') {
+        // fetch voiceChannel from user and guild
+
+        // guild, user -> guildMember
+        let guildMember = guild.members.cache.find( it => it.id === user.id );
+        if (!guildMember) {
+            // should never occur but idk
+            throw 'guild.members.cache.find( it => it.id === user.id ) failed';
+            return;
+        }
+        
+        // user may not be in a voice channel
+        if (!guildMember.voice.channel) return;
+        
+        attemptPlayingSoundFromText(react.message.content, guildMember.voice.channel);
+    }
+});
 
 
 client.on('message', msg => {
@@ -214,36 +288,6 @@ client.on('message', msg => {
             lastTextChannel = msg.channel;
         }
     }
-
-    // WIP
-    if (soundboardTriggered) {
-        msg.react('⏹️');
-        function registerStopHandler() {
-            msg.awaitReactions((r, u) => r.emoji.name === '⏹️' && !u.bot, { max: 1 })
-                .then(collected => {
-                    registerStopHandler();
-                    // stop audio playback
-                    if (msg.guild && msg.guild.me && msg.guild.me.voice &&
-                        msg.guild.me.voice.connection && msg.guild.me.voice.connection.dispatcher) {
-                        console.log('stopping');
-                        msg.guild.me.voice.connection.dispatcher.pause();
-                    }
-                });
-        }
-        registerStopHandler();
-        msg.react('🔁');
-        function registerRepeatHandler() {
-            msg.awaitReactions((r, u) => r.emoji.name === '🔁' && !u.bot, { max: 1 })
-                .then(collected => {
-                    registerRepeatHandler();
-                    // TODO currently repeats on same voice channel it was first triggered on
-                    // TODO calling handleSoundboardMessages is not very elegant 
-                    handleSoundboardMessages(msg, textChannel, voiceChannel);  // TODO if voiceChannel gets deleted we are in trouble
-                });
-        }
-        registerRepeatHandler();
-    }
-    // /WIP
 });
 
 
