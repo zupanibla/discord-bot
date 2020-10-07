@@ -110,8 +110,8 @@ async function handleCommands(msg, textChannel, voiceChannel) {
 
             // extract id if emoji is custom (e.g. "<:hikaru8:716765583915483159>")
             let match = emoji.match(/<:[^:]+:([0-9]+)>/);
-            console.log(match);
-            if (match.length) {
+            
+            if (match) {
                 emoji = match[1];
             }
 
