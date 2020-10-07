@@ -197,7 +197,8 @@ function handleSoundboardMessages(msg, msgChannel, voiceChannel) {
     // if a sound file was found ...
     // play the sound
     playSound(voiceChannel, soundFilePath);
-
+    msg.react('⏹️');
+    msg.react('🔁');  // TODO may arrive in wrong order
 
     return true;
 }
