@@ -16,6 +16,11 @@ const botToken       = process.argv[2];
 const soundFilesPath = process.argv[3];
 
 
+// instantiate Discord client ('MESSAGE', 'CHANNEL', 'REACTION' partials needed for global reaction listening)
+let Discord = require('discord.js');
+let client  = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
+
+
 // notifications are sent via the channels bellow
 // they should at least update when a sound is played
 let lastTextChannel  = null;
@@ -24,6 +29,16 @@ let lastVoiceChannel = null;
 // list of soundboards: which reaction should trigger which sound on which message
 // (soundName: string)[msgId: Snowflake][emojiName: string]
 let soundboards = {};
+
+client.on('message', msg => {
+    if (msg.channel.type == 'text') {
+        // save lastTextChannel for notifications
+        lastTextChannel = msg.channel;
+    }
+
+    handleCommands(msg);
+    handleSoundMessages(msg);
+});
 
 
 // triggers a command if msg matches one
@@ -131,15 +146,24 @@ async function handleCommands(msg) {
 }
 
 
-function playSound(voiceChannel, soundFilePath) {
-    console.log('attempting to play ' + soundFilePath);
-    voiceChannel.join()
-      .then(con => {
-          const dispatcher = con.play(soundFilePath);
-          dispatcher.on('start', _ => console.log('started playing'));
-          dispatcher.on('error', err => console.log);
-      })
-      .catch(console.error);
+// plays a sound if msg matches a sound file and sender is in a vc
+// returns true if a sound was played, false otherwise
+function handleSoundMessages(msg) {
+    // return if sender is not in vc or if he is a bot
+    if (!msg.member  || !msg.member.voice.channel) return false;
+    if (!msg.author ||  msg.author.bot)           return false;
+
+    let soundPlayed = attemptPlayingSoundFromText(msg.content, msg.member.voice.channel);
+
+    if (!soundPlayed) return false;
+
+    msg.react('⏹️');
+    msg.react('🔁');  // TODO may arrive in wrong order
+
+    // update last used voice channel for notifications
+    lastVoiceChannel = msg.member.voice.channel;
+
+    return true;
 }
 
 // tries to map text to a sound file from soundFilesPath and play it in voiceChannel
@@ -168,31 +192,16 @@ function attemptPlayingSoundFromText(text, voiceChannel) {
     return true;
 }
 
-
-// plays a sound if msg matches a sound file and sender is in a vc
-// returns true if a sound was played, false otherwise
-function handleSoundMessages(msg) {
-    // return if sender is not in vc or if he is a bot
-    if (!msg.member  || !msg.member.voice.channel) return false;
-    if (!msg.author ||  msg.author.bot)           return false;
-    
-    let soundPlayed = attemptPlayingSoundFromText(msg.content, msg.member.voice.channel);
-
-    if (!soundPlayed) return false;
-
-    msg.react('⏹️');
-    msg.react('🔁');  // TODO may arrive in wrong order
-
-    // update last used voice channel for notifications
-    lastVoiceChannel = msg.member.voice.channel;
-
-    return true;
+function playSound(voiceChannel, soundFilePath) {
+    console.log('attempting to play ' + soundFilePath);
+    voiceChannel.join()
+      .then(con => {
+          const dispatcher = con.play(soundFilePath);
+          dispatcher.on('start', _ => console.log('started playing'));
+          dispatcher.on('error', err => console.log);
+      })
+      .catch(console.error);
 }
-
-// instantiate Discord client ('MESSAGE', 'CHANNEL', 'REACTION' partials needed for global reaction listening)
-let Discord = require('discord.js');
-let client  = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
-
 
 // play sound on 🔁 react and stop playing on ⏹️
 client.on('messageReactionAdd', async (react, user) => {
@@ -266,16 +275,6 @@ client.on('messageReactionAdd', async (react, user) => {
             lastVoiceChannel = guildMember.voice.channel;
         }
     }
-});
-
-
-client.on('message', msg => {
-    if (msg.channel.type == 'text') {
-        // save lastTextChannel for notifications
-        lastTextChannel = msg.channel;
-    }
-    let commandTriggered = handleCommands(msg);
-    let soundTriggered   = handleSoundMessages(msg);
 });
 
 
