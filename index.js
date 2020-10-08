@@ -21,6 +21,10 @@ const soundFilesPath = process.argv[3];
 let lastTextChannel  = null;
 let lastVoiceChannel = null;
 
+// list of soundboards: which reaction should trigger which sound on which message
+// (soundName: string)[msgId: Snowflake][emojiName: string]
+let soundboards = {};
+
 
 // triggers a command if msg matches one
 // returns true if message was a command, false otherwise
@@ -100,9 +104,11 @@ async function handleCommands(msg, textChannel, voiceChannel) {
         let args = msg.content.substring('makesoundboard '.length).split(',');
         
         // TODO verify args (throws if emoji doesn't exist)
-        // message should be: make soundboard <message> (<sound>, <emoji> )
+        // message should be: make soundboard <message>, (<sound>, <emoji> ),...
 
         let soundboardMessage = await msg.channel.send(args[0]);
+
+        soundboards[soundboardMessage.id] = {};
 
         for (let i = 2; i < args.length; i += 2) {
             let soundName = args[i-1];
@@ -115,17 +121,9 @@ async function handleCommands(msg, textChannel, voiceChannel) {
                 emoji = match[1];
             }
 
+            soundboards[soundboardMessage.id][emoji] = soundName;
+
             soundboardMessage.react(emoji);
-            function registerReactionHandler() {
-                soundboardMessage.awaitReactions((r, u) => r.emoji.name === emoji && !u.bot, { max: 1 })
-                    .then(collected => {
-                        registerReactionHandler();
-                        // TODO currently repeats on provided voice channel. is this ok?
-                        attemptPlayingSoundFromText(soundName, voiceChannel);
-                        // TODO if voiceChannel gets deleted we are in trouble
-                    });
-            }
-            registerReactionHandler();
         }
     }
     else return false;
@@ -173,8 +171,10 @@ function attemptPlayingSoundFromText(text, voiceChannel) {
 
 // plays a sound if msg matches a sound file and voiceChannel is present
 // returns true if a sound was played, false otherwise
-function handleSoundboardMessages(msg, msgChannel, voiceChannel) {
+function handleSoundMessages(msg, msgChannel, voiceChannel) {
     if (!voiceChannel) return false;
+    if (!msg.author || msg.author.bot) return false;
+
 
     let soundPlayed = attemptPlayingSoundFromText(msg.content, voiceChannel);
 
@@ -193,6 +193,7 @@ let client  = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] 
 
 // play sound on 🔁 react and stop playing on ⏹️
 client.on('messageReactionAdd', async (react, user) => {
+    // The replay button and soundboards are only triggerable inside vcs, stop button is triggerable from anywhere
 
     // When we receive a reaction we check if the reaction is partial or not
     if (react.partial) {
@@ -212,35 +213,49 @@ client.on('messageReactionAdd', async (react, user) => {
     if (!react.message.guild) return;
 
     let guild = react.message.guild;
+    let msg   = react.message;
+    let emoji = react.emoji.name;
 
-    if (react.emoji.name === '⏹️') {
-        // stop audio playback
-        if (guild.me && guild.me.voice &&
-            guild.me.voice.connection && guild.me.voice.connection.dispatcher) {
-            console.log('stopping');
-            guild.me.voice.connection.dispatcher.pause();
-        }
-    } else if (react.emoji.name === '🔁') {
-        // fetch voiceChannel from user and guild
+    // guild, user -> guildMember
+    let guildMember = guild.members.cache.find( it => it.id === user.id );
 
-        // guild, user -> guildMember
-        let guildMember = guild.members.cache.find( it => it.id === user.id );
-        if (!guildMember) {
-            // should never occur but idk
-            throw 'guild.members.cache.find( it => it.id === user.id ) failed';
-            return;
+    if (!guildMember) {
+        // should never occur but idk
+        throw 'guild.members.cache.find( it => it.id === user.id ) failed';
+        return;
+    }
+
+
+    // soundboards
+    if (msg.id in soundboards) {
+        if (emoji in soundboards[msg.id]) {
+            // user may not be in a voice channel
+            if (!guildMember.voice.channel) return;
+            
+            attemptPlayingSoundFromText(soundboards[msg.id][emoji], guildMember.voice.channel);
         }
-        
-        // user may not be in a voice channel
-        if (!guildMember.voice.channel) return;
-        
-        attemptPlayingSoundFromText(react.message.content, guildMember.voice.channel);
+    }
+    // stop/replay buttons
+    else {
+        if (emoji === '⏹️') {
+            // stop audio playback
+            if (guild.me && guild.me.voice &&
+                guild.me.voice.connection && guild.me.voice.connection.dispatcher) {
+                console.log('stopping');
+                guild.me.voice.connection.dispatcher.pause();
+            }
+        } else if (emoji === '🔁') {
+            // user may not be in a voice channel
+            if (!guildMember.voice.channel) return;
+            
+            attemptPlayingSoundFromText(msg.content, guildMember.voice.channel);
+        }
     }
 });
 
 
 client.on('message', msg => {
-     // to play sounds we first need a voice channel
+    // to play sounds we first need a voice channel
     // try using user's voice channel, then fall back to last used voice channel
     let voiceChannel = null;
     if (msg.member && msg.member.voice.channel) {
@@ -257,11 +272,10 @@ client.on('message', msg => {
     } else if (lastTextChannel) {
         textChannel = lastTextChannel;
     }
-
     
 
     let commandTriggered    = handleCommands(msg, textChannel, voiceChannel);
-    let soundboardTriggered = handleSoundboardMessages(msg, textChannel, voiceChannel);
+    let soundboardTriggered = handleSoundMessages(msg, textChannel, voiceChannel);
     
     if (commandTriggered || soundboardTriggered) {
         // attempt to update lastVoiceChannel and lastTextChannel
