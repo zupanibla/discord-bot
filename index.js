@@ -28,7 +28,7 @@ let soundboards = {};
 
 // triggers a command if msg matches one
 // returns true if message was a command, false otherwise
-async function handleCommands(msg, textChannel, voiceChannel) {
+async function handleCommands(msg) {
     if ( ['list', 'help', 'listcommands', 'sounds', 'listsounds'].includes(msg.content) ) {
         // list sounds contained in the sound files directory (possibly in multiple messages)
         // TODO check how this behaves with duplicates (e.g. a.mp3, a.ogg)
@@ -169,19 +169,22 @@ function attemptPlayingSoundFromText(text, voiceChannel) {
 }
 
 
-// plays a sound if msg matches a sound file and voiceChannel is present
+// plays a sound if msg matches a sound file and sender is in a vc
 // returns true if a sound was played, false otherwise
-function handleSoundMessages(msg, msgChannel, voiceChannel) {
-    if (!voiceChannel) return false;
-    if (!msg.author || msg.author.bot) return false;
-
-
-    let soundPlayed = attemptPlayingSoundFromText(msg.content, voiceChannel);
+function handleSoundMessages(msg) {
+    // return if sender is not in vc or if he is a bot
+    if (!msg.member  || !msg.member.voice.channel) return false;
+    if (!msg.author ||  msg.author.bot)           return false;
+    
+    let soundPlayed = attemptPlayingSoundFromText(msg.content, msg.member.voice.channel);
 
     if (!soundPlayed) return false;
 
     msg.react('⏹️');
     msg.react('🔁');  // TODO may arrive in wrong order
+
+    // update last used voice channel for notifications
+    lastVoiceChannel = msg.member.voice.channel;
 
     return true;
 }
@@ -216,6 +219,12 @@ client.on('messageReactionAdd', async (react, user) => {
     let msg   = react.message;
     let emoji = react.emoji.name;
 
+
+    if (msg.channel.type == 'text') {
+        // save lastTextChannel for notifications
+        lastTextChannel = msg.channel;
+    }
+
     // guild, user -> guildMember
     let guildMember = guild.members.cache.find( it => it.id === user.id );
 
@@ -233,6 +242,9 @@ client.on('messageReactionAdd', async (react, user) => {
             if (!guildMember.voice.channel) return;
             
             attemptPlayingSoundFromText(soundboards[msg.id][emoji], guildMember.voice.channel);
+
+            // save last used voice channel for notifications
+            lastVoiceChannel = guildMember.voice.channel;
         }
     }
     // stop/replay buttons
@@ -249,43 +261,21 @@ client.on('messageReactionAdd', async (react, user) => {
             if (!guildMember.voice.channel) return;
             
             attemptPlayingSoundFromText(msg.content, guildMember.voice.channel);
+
+            // save last used voice channel for notifications
+            lastVoiceChannel = guildMember.voice.channel;
         }
     }
 });
 
 
 client.on('message', msg => {
-    // to play sounds we first need a voice channel
-    // try using user's voice channel, then fall back to last used voice channel
-    let voiceChannel = null;
-    if (msg.member && msg.member.voice.channel) {
-        voiceChannel = msg.member.voice.channel;
-    } else if (lastVoiceChannel) {
-        voiceChannel = lastVoiceChannel;
+    if (msg.channel.type == 'text') {
+        // save lastTextChannel for notifications
+        lastTextChannel = msg.channel;
     }
-
-    // to send messages we first need a text channel
-    // try using msg's channel, then fall back to last used text channel
-    let textChannel;
-    if (msg.channel) {
-        textChannel = msg.channel;
-    } else if (lastTextChannel) {
-        textChannel = lastTextChannel;
-    }
-    
-
-    let commandTriggered    = handleCommands(msg, textChannel, voiceChannel);
-    let soundboardTriggered = handleSoundMessages(msg, textChannel, voiceChannel);
-    
-    if (commandTriggered || soundboardTriggered) {
-        // attempt to update lastVoiceChannel and lastTextChannel
-        if (voiceChannel) {
-            lastVoiceChannel = voiceChannel;
-        }
-        if (msg.channel) {
-            lastTextChannel = msg.channel;
-        }
-    }
+    let commandTriggered = handleCommands(msg);
+    let soundTriggered   = handleSoundMessages(msg);
 });
 
 
