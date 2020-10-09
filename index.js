@@ -33,15 +33,16 @@ let soundboards = {};
 
 
 // attempt to load previous state from save file
-if (saveFilePath && fs.existsSync(saveFilePath)) {
-    let saveFileContent = fs.readFileSync(saveFilePath, 'utf-8');
-    let saveState = JSON.parse(saveFileContent);
+if (saveFilePath) {
+    try {
+        let saveFileContent = fs.readFileSync(saveFilePath, 'utf-8');
+        let saveState = JSON.parse(saveFileContent);
 
-    if (saveState.soundboards) {
-        soundboards = saveState.soundboards;
-    }
-
-    console.log('loaded save state');
+        if (saveState.soundboards) {
+            soundboards = saveState.soundboards;
+        }
+        console.log('loaded save state');
+    } catch (err) {}
 }
 
 // tries to save state to saveFilePath
@@ -51,7 +52,9 @@ function attemptSavingState() {
         let newSaveState = {
             soundboards,
         };
-        fs.writeFile(saveFilePath, JSON.stringify(newSaveState), 'utf-8', ()=>0);
+        try {
+            fs.writeFile(saveFilePath, JSON.stringify(newSaveState), 'utf-8', ()=>0);
+        } catch (err) {}
     }
 }
 
@@ -73,11 +76,13 @@ async function handleCommands(msg) {
     if ( ['list', 'help', 'listcommands', 'sounds', 'listsounds'].includes(msg.content) ) {
         // list sounds contained in the sound files directory (possibly in multiple messages)
         // TODO check how this behaves with duplicates (e.g. a.mp3, a.ogg)
-        let soundList = fs.readdirSync(soundFilesPath).map(v => v.split('.')[0]).join(', ');
-        let soundListChunks = soundList.match(/(.{1,1900}(\s|$))\s*/g);
-        for (let it of soundListChunks) {
-            msg.reply(it);
-        }
+        try {
+            let soundList = fs.readdirSync(soundFilesPath).map(v => v.split('.')[0]).join(', ');
+            let soundListChunks = soundList.match(/(.{1,1900}(\s|$))\s*/g);
+            for (let it of soundListChunks) {
+                msg.reply(it);
+            }
+        } catch (err) { console.log(err); }
     }
     
     else if ( ['stop', 'skip'].includes(msg.content) ) {
@@ -113,31 +118,33 @@ async function handleCommands(msg) {
     else if ( ['listlatest', 'list latest'].includes(msg.content) ) {
         // replies with 10 latest files from 'soundFilesPath' and their creation dates
         // TODO creation date vs added to bot date
-        let sortedFileList =
-            fs.readdirSync(soundFilesPath)
-            .map((it) => 
-                ({
-                    name: it,
-                    time: new Date(fs.statSync(soundFilesPath + '/' + it).mtime.getTime()),
-                })
-            )
-            .sort( (a, b) => b.time - a.time );
-        
-        [].slice()
-        msg.reply(
-            '\n' +
-            sortedFileList
-            .slice(0, 10)
-            .map(it =>
-                it.time.getFullYear() + '/' +
-                String(it.time.getMonth() + 1).padStart(2, '0') + '/' +
-                String(it.time.getDate()     ).padStart(2, '0') + ' ' +
-                String(it.time.getHours()    ).padStart(2, ' ') + ':' +
-                String(it.time.getMinutes()  ).padStart(2, '0') + ' ' +
-                it.name
-            )
-            .join('\n')
-        );
+        try {
+            let sortedFileList =
+                fs.readdirSync(soundFilesPath)
+                .map((it) => 
+                    ({
+                        name: it,
+                        time: new Date(fs.statSync(soundFilesPath + '/' + it).mtime.getTime()),
+                    })
+                )
+                .sort( (a, b) => b.time - a.time );
+            
+            [].slice()
+            msg.reply(
+                '\n' +
+                sortedFileList
+                .slice(0, 10)
+                .map(it =>
+                    it.time.getFullYear() + '/' +
+                    String(it.time.getMonth() + 1).padStart(2, '0') + '/' +
+                    String(it.time.getDate()     ).padStart(2, '0') + ' ' +
+                    String(it.time.getHours()    ).padStart(2, ' ') + ':' +
+                    String(it.time.getMinutes()  ).padStart(2, '0') + ' ' +
+                    it.name
+                )
+                .join('\n')
+            );
+        } catch (err) { console.log(err); }
     }
     else if (msg.content.startsWith('makesoundboard ')) {
         // makes a soundboard - message with react buttons that trigger sounds
