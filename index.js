@@ -75,7 +75,6 @@ client.on('message', msg => {
 async function handleCommands(msg) {
     if ( ['list', 'help', 'listcommands', 'sounds', 'listsounds'].includes(msg.content) ) {
         // list sounds contained in the sound files directory (possibly in multiple messages)
-        // TODO check how this behaves with duplicates (e.g. a.mp3, a.ogg)
         try {
             let soundList = fs.readdirSync(soundFilesPath).map(v => v.split('.')[0]).join(', ');
             let soundListChunks = soundList.match(/(.{1,1900}(\s|$))\s*/g);
@@ -148,10 +147,8 @@ async function handleCommands(msg) {
     }
     else if (msg.content.startsWith('makesoundboard ')) {
         // makes a soundboard - message with react buttons that trigger sounds
-        // TODO somehow refresh soundboard when bot reconnects, staticly bound vc doesn't feel good
         let args = msg.content.substring('makesoundboard '.length).split(',');
         
-        // TODO verify args (throws if emoji doesn't exist)
         // message should be: make soundboard <message>, (<sound>, <emoji> ),...
 
         let soundboardMessage = await msg.channel.send(args[0]);
@@ -171,7 +168,9 @@ async function handleCommands(msg) {
 
             soundboards[soundboardMessage.id][emoji] = soundName;
 
-            soundboardMessage.react(emoji);
+            try {  // emoji may not be valid
+                soundboardMessage.react(emoji);
+            } catch (err) {}
         }
 
         // record newly created soundboard so it gets revived on reloads
@@ -203,8 +202,7 @@ function handleSoundMessages(msg) {
 
     if (!soundPlayed) return false;
 
-    msg.react('⏹️');
-    msg.react('🔁');  // TODO may arrive in wrong order
+    msg.react('⏹️').then(() => msg.react('🔁'));
 
     // update last used voice channel for notifications
     lastVoiceChannel = guildMember.voice.channel;
