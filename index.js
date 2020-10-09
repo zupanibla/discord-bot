@@ -114,9 +114,14 @@ async function handleCommands(msg) {
         }
     }
 
-    else if ( ['listlatest', 'list latest'].includes(msg.content) ) {
-        // replies with 10 latest files from 'soundFilesPath' and their creation dates
+    else if ( msg.content.startsWith('listlatest') || msg.content.startsWith('list latest') ) {
+        // replies with 'listLength' latest files from 'soundFilesPath' and their creation dates ('listLength' defaults to 10)
         // TODO creation date vs added to bot date
+        let listLength = parseInt(msg.content.replace(/\D/g,''));
+        if (!listLength) {
+            listLength = 10;
+        }
+
         try {
             let sortedFileList =
                 fs.readdirSync(soundFilesPath)
@@ -128,11 +133,9 @@ async function handleCommands(msg) {
                 )
                 .sort( (a, b) => b.time - a.time );
             
-            [].slice()
-            msg.reply(
-                '\n' +
+            let text = '\n' +
                 sortedFileList
-                .slice(0, 10)
+                .slice(0, listLength)
                 .map(it =>
                     it.time.getFullYear() + '/' +
                     String(it.time.getMonth() + 1).padStart(2, '0') + '/' +
@@ -141,8 +144,13 @@ async function handleCommands(msg) {
                     String(it.time.getMinutes()  ).padStart(2, '0') + ' ' +
                     it.name
                 )
-                .join('\n')
-            );
+                .join('\n');
+
+            // chunk the list if it doesn't fit in a single message
+            let textChunks = text.match(/((.|\n){1,1900}(\n|$))\s*/g);
+            for (let it of textChunks) {
+                msg.reply(it);
+            }
         } catch (err) { console.log(err); }
     }
     else if (msg.content.startsWith('makesoundboard ')) {
