@@ -185,11 +185,21 @@ async function handleCommands(msg) {
 // plays a sound if msg matches a sound file and sender is in a vc
 // returns true if a sound was played, false otherwise
 function handleSoundMessages(msg) {
-    // return if sender is not in vc or if he is a bot
-    if (!msg.member  || !msg.member.voice.channel) return false;
-    if (!msg.author ||  msg.author.bot)           return false;
+    // return if sender is bot
+    if (!msg.author ||  msg.author.bot) return false;
 
-    let soundPlayed = attemptPlayingSoundFromText(msg.content, msg.member.voice.channel);
+    // find guild member with user id and voice channel (return if not found)
+    let guildMember = null;
+
+    for (let [_, g] of client.guilds.cache) {
+        for (let [_, m] of g.members.cache) {
+            if (m.id === msg.author.id && m.voice.channel) guildMember = m;
+        }
+    }
+
+    if (!guildMember) return false;
+
+    let soundPlayed = attemptPlayingSoundFromText(msg.content, guildMember.voice.channel);
 
     if (!soundPlayed) return false;
 
@@ -197,7 +207,7 @@ function handleSoundMessages(msg) {
     msg.react('🔁');  // TODO may arrive in wrong order
 
     // update last used voice channel for notifications
-    lastVoiceChannel = msg.member.voice.channel;
+    lastVoiceChannel = guildMember.voice.channel;
 
     return true;
 }
@@ -257,10 +267,7 @@ client.on('messageReactionAdd', async (react, user) => {
 
     // prevent bots triggering commands
     if (user.bot) return;
-    // ignore private messages
-    if (!react.message.guild) return;
 
-    let guild = react.message.guild;
     let msg   = react.message;
     let emoji = react.emoji.name;
 
@@ -270,22 +277,21 @@ client.on('messageReactionAdd', async (react, user) => {
         lastTextChannel = msg.channel;
     }
 
-    // guild, user -> guildMember
-    let guildMember = guild.members.cache.find( it => it.id === user.id );
+    // find guild member with user id and voice channel (may not exist)
+    let guildMember = null;
 
-    if (!guildMember) {
-        // should never occur but idk
-        throw 'guild.members.cache.find( it => it.id === user.id ) failed';
-        return;
+    for (let [_, g] of client.guilds.cache) {
+        for (let [_, m] of g.members.cache) {
+            if (m.id === user.id && m.voice.channel) guildMember = m;
+        }
     }
 
 
     // soundboards
     if (msg.id in soundboards) {
-        if (emoji in soundboards[msg.id]) {
-            // user may not be in a voice channel
-            if (!guildMember.voice.channel) return;
-            
+        if (!guildMember) return;
+
+        if (emoji in soundboards[msg.id]) {            
             attemptPlayingSoundFromText(soundboards[msg.id][emoji], guildMember.voice.channel);
 
             // save last used voice channel for notifications
@@ -295,15 +301,28 @@ client.on('messageReactionAdd', async (react, user) => {
     // stop/replay buttons
     else {
         if (emoji === '⏹️') {
-            // stop audio playback
-            if (guild.me && guild.me.voice &&
+            let guild = null
+            if (react.message.guild) {
+                // if reaction is in guild
+                guild = react.message.guild;
+            } else if (guildMember) {
+                // if reaction is in DM and reactee is in vc
+                guild = guildMember.guild;
+            } else {
+                // if reaction is in DM and reactee not in vc
+                if (lastVoiceChannel) {
+                    guild = lastVoiceChannel.guild;
+                }
+            }
+
+            // stop audio playback in guild
+            if (guild && guild.me && guild.me.voice &&
                 guild.me.voice.connection && guild.me.voice.connection.dispatcher) {
                 console.log('stopping');
                 guild.me.voice.connection.dispatcher.pause();
             }
         } else if (emoji === '🔁') {
-            // user may not be in a voice channel
-            if (!guildMember.voice.channel) return;
+            if (!guildMember) return;
             
             attemptPlayingSoundFromText(msg.content, guildMember.voice.channel);
 
