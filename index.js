@@ -167,11 +167,17 @@ async function handleCommands(msg) {
             }
 
             soundboards[soundboardMessage.id][emoji] = soundName;
-
-            try {  // emoji may not be valid
-                soundboardMessage.react(emoji);
-            } catch (err) {}
         }
+
+        // reacts need to wait for each other so they arrive in correct order
+        (async () => {
+            for (let emoji in soundboards[soundboardMessage.id]) {
+                try {  // emoji may not be valid
+                    await soundboardMessage.react(emoji);
+                } catch (err) {}
+            }
+        })();
+        
 
         // record newly created soundboard so it gets revived on reloads
         attemptSavingState();
