@@ -9,11 +9,12 @@ const hound    = require('hound');
 
 
 // args
-if (process.argv.length != 4) {
-    console.log('Two positional arguments required: <bot token> <sound files path>');
+if (process.argv.length < 4) {
+    console.log('argument fromat is: <bot token> <sound files path> [save file path]');
 }
 const botToken       = process.argv[2];
 const soundFilesPath = process.argv[3];
+const saveFilePath   = process.argv[4];
 
 
 // instantiate Discord client ('MESSAGE', 'CHANNEL', 'REACTION' partials needed for global reaction listening)
@@ -29,6 +30,31 @@ let lastVoiceChannel = null;
 // list of soundboards: which reaction should trigger which sound on which message
 // (soundName: string)[msgId: Snowflake][emojiName: string]
 let soundboards = {};
+
+
+// attempt to load previous state from save file
+if (saveFilePath && fs.existsSync(saveFilePath)) {
+    let saveFileContent = fs.readFileSync(saveFilePath, 'utf-8');
+    let saveState = JSON.parse(saveFileContent);
+
+    if (saveState.soundboards) {
+        soundboards = saveState.soundboards;
+    }
+
+    console.log('loaded save state');
+}
+
+// tries to save state to saveFilePath
+function attemptSavingState() {
+    console.log('saving state ...');
+    if (saveFilePath) {
+        let newSaveState = {
+            soundboards,
+        };
+        fs.writeFile(saveFilePath, JSON.stringify(newSaveState), 'utf-8', ()=>0);
+    }
+}
+
 
 client.on('message', msg => {
     if (msg.channel.type == 'text') {
@@ -140,6 +166,9 @@ async function handleCommands(msg) {
 
             soundboardMessage.react(emoji);
         }
+
+        // record newly created soundboard so it gets revived on reloads
+        attemptSavingState();
     }
     else return false;
     return true;
