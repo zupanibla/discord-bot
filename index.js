@@ -31,12 +31,12 @@ let lastVoiceChannel = null;
 // (soundName: string)[msgId: Snowflake][emojiName: string]
 let soundboards = {};
 
-// map of automatic replies: if a message with content * is sent in a channel and
-// bot has an automatic reply with key *, it will send a message with content
+// map of auto replies: if a message with content * is sent in a channel and
+// bot has an auto reply with key *, it will send a message with content
 // that corresponds to value at key *
 // keys are lowercase and alphanumeric
 // (reply: string)[triggerText: string]
-let automaticReplies = {};
+let autoReplies = {};
 
 // attempt to load previous state from save file
 if (saveFilePath) {
@@ -47,8 +47,8 @@ if (saveFilePath) {
         if (saveState.soundboards) {
             soundboards = saveState.soundboards;
         }
-        if (saveState.automaticReplies) {
-            automaticReplies = saveState.automaticReplies;
+        if (saveState.autoReplies) {
+            autoReplies = saveState.autoReplies;
         }
         console.log('loaded save state');
     } catch (err) {}
@@ -60,7 +60,7 @@ function attemptSavingState() {
     if (saveFilePath) {
         let newSaveState = {
             soundboards,
-            automaticReplies,
+            autoReplies,
         };
         try {
             fs.writeFile(saveFilePath, JSON.stringify(newSaveState), 'utf-8', ()=>0);
@@ -75,7 +75,7 @@ client.on('message', msg => {
         lastTextChannel = msg.channel;
     }
 
-    handleAutomaticReplies(msg);
+    handleAutoReplies(msg);
     handleCommands(msg);
     handleSoundMessages(msg);
 });
@@ -87,11 +87,11 @@ function normalizeText(text) {
 }
 
 
-// sends an automatic reply and returns true if msg.content matches 
-// an entry in automaticReplies returns false otherwise
-function handleAutomaticReplies(msg) {
-    if (normalizeText(msg.content) in automaticReplies) {
-        msg.channel.send(automaticReplies[normalizeText(msg.content)]);
+// sends an auto reply and returns true if msg.content matches 
+// an entry in autoReplies returns false otherwise
+function handleAutoReplies(msg) {
+    if (normalizeText(msg.content) in autoReplies) {
+        msg.channel.send(autoReplies[normalizeText(msg.content)]);
         return true;
     }
     return false;
@@ -217,19 +217,19 @@ async function handleCommands(msg) {
 
         // record newly created soundboard so it gets revived on reloads
         attemptSavingState();
-    } else if (msg.content.startsWith('automaticreply ')) {
-        // adds an entry to automaticReplies
-        let args = msg.content.substring('automaticreply '.length).split(',');
+    } else if (msg.content.startsWith('autoreply ')) {
+        // adds an entry to autoReplies
+        let args = msg.content.substring('autoreply '.length).split(',');
         if (args.length != 2) return;
-        automaticReplies[normalizeText(args[0])] = args[1];
-        console.log(`new automatic reply: ${normalizeText(args[0])} -> ${args[1]}`);
+        autoReplies[normalizeText(args[0])] = args[1];
+        console.log(`new auto reply: ${normalizeText(args[0])} -> ${args[1]}`);
 
         attemptSavingState();
-    } else if (msg.content.startsWith('removeautomaticreply ')) {
-        // remove an entry from automaticReplies
-        let key = msg.content.substring('removeautomaticreply '.length);
-        delete automaticReplies[normalizeText(key)];
-        console.log(`removed automatic reply for: ${normalizeText(key)}`);
+    } else if (msg.content.startsWith('removeautoreply ')) {
+        // remove an entry from autoReplies
+        let key = msg.content.substring('removeautoreply '.length);
+        delete autoReplies[normalizeText(key)];
+        console.log(`removed auto reply for: ${normalizeText(key)}`);
 
         attemptSavingState();
     } else if (['dumpsavefile'].includes(msg.content)) {
@@ -239,9 +239,9 @@ async function handleCommands(msg) {
         } catch (err) {
             msg.reply('save file dump failed :(');
         }
-    } else if (['listautomaticreplies'].includes(msg.content)) {
-        // replies with readable print of automaticReplies contents
-        let text = Object.entries(automaticReplies).map(([k, v]) => `${k} -> ${v}`).join('\n');
+    } else if (['listautoreplies'].includes(msg.content)) {
+        // replies with readable print of autoReplies contents
+        let text = Object.entries(autoReplies).map(([k, v]) => `${k} -> ${v}`).join('\n');
 
         // chunk the list if it doesn't fit in a single message
         let textChunks = text.match(/((.|\n){1,1900}(\n|$))\s*/g);
