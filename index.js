@@ -239,6 +239,15 @@ async function handleCommands(msg) {
         } catch (err) {
             msg.reply('save file dump failed :(');
         }
+    } else if (['listautomaticreplies'].includes(msg.content)) {
+        // replies with readable print of automaticReplies contents
+        let text = Object.entries(automaticReplies).map(([k, v]) => `${k} -> ${v}`).join('\n');
+
+        // chunk the list if it doesn't fit in a single message
+        let textChunks = text.match(/((.|\n){1,1900}(\n|$))\s*/g);
+        for (let it of textChunks) {
+            msg.reply(it);
+        }
     }
     else return false;
     return true;
