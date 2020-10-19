@@ -232,6 +232,13 @@ async function handleCommands(msg) {
         console.log(`removed automatic reply for: ${normalizeText(key)}`);
 
         attemptSavingState();
+    } else if (['dumpsavefile'].includes(msg.content)) {
+        // attempts to reply with save file contents or a failure message
+        try {
+            msg.reply(fs.readFileSync(saveFilePath, 'utf-8'));
+        } catch (err) {
+            msg.reply('save file dump failed :(');
+        }
     }
     else return false;
     return true;
