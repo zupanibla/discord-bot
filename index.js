@@ -27,10 +27,16 @@ let client  = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] 
 let lastTextChannel  = null;
 let lastVoiceChannel = null;
 
-// list of soundboards: which reaction should trigger which sound on which message
+// map of soundboards: which reaction should trigger which sound on which message
 // (soundName: string)[msgId: Snowflake][emojiName: string]
 let soundboards = {};
 
+// map of automatic replies: if a message with content * is sent in a channel and
+// bot has an automatic reply with key *, it will send a message with content
+// that corresponds to value at key *
+// keys are lowercase and alphanumeric
+// (reply: string)[triggerText: string]
+let automaticReplies = {};
 
 // attempt to load previous state from save file
 if (saveFilePath) {
@@ -40,6 +46,9 @@ if (saveFilePath) {
 
         if (saveState.soundboards) {
             soundboards = saveState.soundboards;
+        }
+        if (saveState.automaticReplies) {
+            automaticReplies = saveState.automaticReplies;
         }
         console.log('loaded save state');
     } catch (err) {}
@@ -51,6 +60,7 @@ function attemptSavingState() {
     if (saveFilePath) {
         let newSaveState = {
             soundboards,
+            automaticReplies,
         };
         try {
             fs.writeFile(saveFilePath, JSON.stringify(newSaveState), 'utf-8', ()=>0);
@@ -65,10 +75,27 @@ client.on('message', msg => {
         lastTextChannel = msg.channel;
     }
 
+    handleAutomaticReplies(msg);
     handleCommands(msg);
     handleSoundMessages(msg);
 });
 
+
+// returns lowercased and stripped of non-alphanumeric characters version of message (normal form)
+function normalizeText(text) {
+   return text.toLowerCase().replace(/[^a-zA-Z0-9]+/g, ''); 
+}
+
+
+// sends an automatic reply and returns true if msg.content matches 
+// an entry in automaticReplies returns false otherwise
+function handleAutomaticReplies(msg) {
+    if (normalizeText(msg.content) in automaticReplies) {
+        msg.channel.send(automaticReplies[normalizeText(msg.content)]);
+        return true;
+    }
+    return false;
+}
 
 // triggers a command if msg matches one
 // returns true if message was a command, false otherwise
@@ -186,8 +213,24 @@ async function handleCommands(msg) {
             }
         })();
         
+        console.log('created new soundboard');
 
         // record newly created soundboard so it gets revived on reloads
+        attemptSavingState();
+    } else if (msg.content.startsWith('automaticreply ')) {
+        // adds an entry to automaticReplies
+        let args = msg.content.substring('automaticreply '.length).split(',');
+        if (args.length != 2) return;
+        automaticReplies[normalizeText(args[0])] = args[1];
+        console.log(`new automatic reply: ${normalizeText(args[0])} -> ${args[1]}`);
+
+        attemptSavingState();
+    } else if (msg.content.startsWith('removeautomaticreply ')) {
+        // remove an entry from automaticReplies
+        let key = msg.content.substring('removeautomaticreply '.length);
+        delete automaticReplies[normalizeText(key)];
+        console.log(`removed automatic reply for: ${normalizeText(key)}`);
+
         attemptSavingState();
     }
     else return false;
@@ -227,7 +270,7 @@ function handleSoundMessages(msg) {
 // tries to map text to a sound file from soundFilesPath and play it in voiceChannel
 function attemptPlayingSoundFromText(text, voiceChannel) {
     // attempt to fetch soundName from message (to lowercase, remove non alphanumeric)
-    let soundName = text.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '');
+    let soundName = normalizeText(text);
     if (!soundName) return false;
 
     // attempt to find the corresponding sound file
