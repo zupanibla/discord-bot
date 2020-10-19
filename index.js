@@ -90,6 +90,9 @@ function normalizeText(text) {
 // sends an auto reply and returns true if msg.content matches 
 // an entry in autoReplies returns false otherwise
 function handleAutoReplies(msg) {
+    // return if sender is bot
+    if (!msg.author ||  msg.author.bot) return false;
+
     if (normalizeText(msg.content) in autoReplies) {
         msg.channel.send(autoReplies[normalizeText(msg.content)]);
         return true;
