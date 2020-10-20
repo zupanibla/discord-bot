@@ -86,6 +86,14 @@ function normalizeText(text) {
    return text.toLowerCase().replace(/[^a-zA-Z0-9]+/g, ''); 
 }
 
+// splits text into an array of as long as possible chunks, but not longer than maxChunkLength
+// preferrably separating it with preferred separator
+function chunkText(text, maxChunkLength, preferredSeparator) {
+    let re = new RegExp(`((.|\n){1,${maxChunkLength}}(${preferredSeparator}|$))`, 'g');
+    let textChunks = text.match(re);
+    return textChunks ? textChunks : [''];
+}
+
 
 // sends an auto reply and returns true if msg.content matches 
 // an entry in autoReplies returns false otherwise
@@ -107,10 +115,9 @@ async function handleCommands(msg) {
         // list sounds contained in the sound files directory (possibly in multiple messages)
         try {
             let text = fs.readdirSync(soundFilesPath).map(v => v.split('.')[0]).join(', ');
-            let textChunks = text.match(/(.{1,1900}(\s|$))\s*/g);
+            let textChunks = chunkText(text, 1900, ' ');
 
-            // match returns null if there are no matches
-            if (!textChunks) {
+            if (textChunks[0] == '') {
                 msg.reply('There are no sounds :(');
                 return true;
             }
@@ -170,7 +177,7 @@ async function handleCommands(msg) {
                 )
                 .sort( (a, b) => b.time - a.time );
             
-            let text = '\n' +
+            let text = 
                 sortedFileList
                 .slice(0, listLength)
                 .map(it =>
@@ -184,16 +191,15 @@ async function handleCommands(msg) {
                 .join('\n');
 
             // chunk the list if it doesn't fit in a single message
-            let textChunks = text.match(/((.|\n){1,1900}(\n|$))\s*/g);
+            let textChunks = chunkText(text, 1900, '\n');
 
-            // match returns null if there are no matches
-            if (!textChunks || !sortedFileList.length) {
+            if (textChunks[0] == '') {
                 msg.reply('There are no sounds :(');
                 return true;
             }
 
             for (let it of textChunks) {
-                msg.reply(it);
+                msg.reply('\n' + it);
             }
         } catch (err) { console.log(err); }
     }
@@ -261,16 +267,16 @@ async function handleCommands(msg) {
         let text = Object.entries(autoReplies).map(([k, v]) => `${k} -> ${v}`).join('\n');
 
         // chunk the list if it doesn't fit in a single message
-        let textChunks = text.match(/((.|\n){1,1900}(\n|$))\s*/g);
+        let textChunks = chunkText(text, 1900, '\n');
         
         // match returns null if there are no matches
-        if (!textChunks) {
+        if (textChunks[0] == '') {
             msg.reply('There are no auto replies :(');
             return true;
         }
 
         for (let it of textChunks) {
-            msg.reply(it);
+            msg.reply('\n' + it);
         }
     }
     else return false;
