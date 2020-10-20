@@ -106,9 +106,16 @@ async function handleCommands(msg) {
     if ( ['list', 'help', 'listcommands', 'sounds', 'listsounds'].includes(msg.content) ) {
         // list sounds contained in the sound files directory (possibly in multiple messages)
         try {
-            let soundList = fs.readdirSync(soundFilesPath).map(v => v.split('.')[0]).join(', ');
-            let soundListChunks = soundList.match(/(.{1,1900}(\s|$))\s*/g);
-            for (let it of soundListChunks) {
+            let text = fs.readdirSync(soundFilesPath).map(v => v.split('.')[0]).join(', ');
+            let textChunks = text.match(/(.{1,1900}(\s|$))\s*/g);
+
+            // match returns null if there are no matches
+            if (!textChunks) {
+                msg.reply('There are no sounds :(');
+                return true;
+            }
+
+            for (let it of textChunks) {
                 msg.reply(it);
             }
         } catch (err) { console.log(err); }
@@ -178,6 +185,13 @@ async function handleCommands(msg) {
 
             // chunk the list if it doesn't fit in a single message
             let textChunks = text.match(/((.|\n){1,1900}(\n|$))\s*/g);
+
+            // match returns null if there are no matches
+            if (!textChunks || !sortedFileList.length) {
+                msg.reply('There are no sounds :(');
+                return true;
+            }
+
             for (let it of textChunks) {
                 msg.reply(it);
             }
@@ -248,6 +262,13 @@ async function handleCommands(msg) {
 
         // chunk the list if it doesn't fit in a single message
         let textChunks = text.match(/((.|\n){1,1900}(\n|$))\s*/g);
+        
+        // match returns null if there are no matches
+        if (!textChunks) {
+            msg.reply('There are no auto replies :(');
+            return true;
+        }
+
         for (let it of textChunks) {
             msg.reply(it);
         }
