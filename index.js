@@ -6,6 +6,8 @@ console.log('Node version: ' + process.version);
 const fs       = require('fs');
 const path     = require('path');
 const hound    = require('hound');
+const { Client, IntentsBitField, Partials } = require('discord.js');
+const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@discordjs/voice');
 
 
 // args
@@ -18,8 +20,10 @@ const saveFilePath   = process.argv[4];
 
 
 // instantiate Discord client ('MESSAGE', 'CHANNEL', 'REACTION' partials needed for global reaction listening)
-let Discord = require('discord.js');
-let client  = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] });
+let client  = new Client({
+	intents: new IntentsBitField(3276799),
+	partials: [Partials.Message, Partials.Channel, Partials.Reaction]
+});
 
 
 // notifications are sent via the channels bellow
@@ -69,7 +73,7 @@ function attemptSavingState() {
 }
 
 
-client.on('message', msg => {
+client.on('messageCreate', msg => {
     if (msg.channel.type == 'text') {
         // save lastTextChannel for notifications
         lastTextChannel = msg.channel;
@@ -83,7 +87,7 @@ client.on('message', msg => {
 
 // returns lowercased and stripped of non-alphanumeric characters version of message (normal form)
 function normalizeText(text) {
-   return text.toLowerCase().replace(/[^a-zA-Z0-9]+/g, ''); 
+   return text.toLowerCase().replace(/[^a-zA-Z0-9]+/g, '');
 }
 
 // splits text into an array of as long as possible chunks, but not longer than maxChunkLength
@@ -95,7 +99,7 @@ function chunkText(text, maxChunkLength, preferredSeparator) {
 }
 
 
-// sends an auto reply and returns true if msg.content matches 
+// sends an auto reply and returns true if msg.content matches
 // an entry in autoReplies returns false otherwise
 function handleAutoReplies(msg) {
     // return if sender is bot
@@ -127,7 +131,7 @@ async function handleCommands(msg) {
             }
         } catch (err) { console.log(err); }
     }
-    
+
     else if ( ['stop', 'skip'].includes(msg.content) ) {
         // stop audio playback
         if (msg.guild && msg.guild.me && msg.guild.me.voice &&
@@ -169,15 +173,15 @@ async function handleCommands(msg) {
         try {
             let sortedFileList =
                 fs.readdirSync(soundFilesPath)
-                .map((it) => 
+                .map((it) =>
                     ({
                         name: it,
                         time: new Date(fs.statSync(soundFilesPath + '/' + it).mtime.getTime()),
                     })
                 )
                 .sort( (a, b) => b.time - a.time );
-            
-            let text = 
+
+            let text =
                 sortedFileList
                 .slice(0, listLength)
                 .map(it =>
@@ -206,7 +210,7 @@ async function handleCommands(msg) {
     else if (msg.content.startsWith('makesoundboard ')) {
         // makes a soundboard - message with react buttons that trigger sounds
         let args = msg.content.substring('makesoundboard '.length).split(',');
-        
+
         // message should be: make soundboard <message>, (<sound>, <emoji> ),...
 
         let soundboardMessage = await msg.channel.send(args[0]);
@@ -219,7 +223,7 @@ async function handleCommands(msg) {
 
             // extract id if emoji is custom (e.g. "<:hikaru8:716765583915483159>")
             let match = emoji.match(/<:[^:]+:([0-9]+)>/);
-            
+
             if (match) {
                 emoji = match[1];
             }
@@ -235,7 +239,7 @@ async function handleCommands(msg) {
                 } catch (err) {}
             }
         })();
-        
+
         console.log('created new soundboard');
 
         // record newly created soundboard so it gets revived on reloads
@@ -268,7 +272,7 @@ async function handleCommands(msg) {
 
         // chunk the list if it doesn't fit in a single message
         let textChunks = chunkText(text, 1900, '\n');
-        
+
         // match returns null if there are no matches
         if (textChunks[0] == '') {
             msg.reply('There are no auto replies :(');
@@ -339,15 +343,17 @@ function attemptPlayingSoundFromText(text, voiceChannel) {
     return true;
 }
 
-function playSound(voiceChannel, soundFilePath) {
+function playSound(channel, soundFilePath) {
     console.log('attempting to play ' + soundFilePath);
-    voiceChannel.join()
-      .then(con => {
-          const dispatcher = con.play(soundFilePath);
-          dispatcher.on('start', _ => console.log('started playing'));
-          dispatcher.on('error', err => console.log);
-      })
-      .catch(console.error);
+    const connection = joinVoiceChannel({
+        channelId: channel.id,
+        guildId: channel.guild.id,
+        adapterCreator: channel.guild.voiceAdapterCreator,
+    });
+    const player = createAudioPlayer();
+    const resource = createAudioResource(soundFilePath);
+    player.play(resource);
+    connection.subscribe(player);
 }
 
 // play sound on 🔁 react and stop playing on ⏹️
@@ -392,7 +398,7 @@ client.on('messageReactionAdd', async (react, user) => {
     if (msg.id in soundboards) {
         if (!guildMember) return;
 
-        if (emoji in soundboards[msg.id]) {            
+        if (emoji in soundboards[msg.id]) {
             attemptPlayingSoundFromText(soundboards[msg.id][emoji], guildMember.voice.channel);
 
             // save last used voice channel for notifications
@@ -424,7 +430,7 @@ client.on('messageReactionAdd', async (react, user) => {
             }
         } else if (emoji === '🔁') {
             if (!guildMember) return;
-            
+
             attemptPlayingSoundFromText(msg.content, guildMember.voice.channel);
 
             // save last used voice channel for notifications
