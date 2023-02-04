@@ -1,2 +1,2 @@
 # discord-bot
-To je Blažev discord bot muahahaha
+npx node-ts index.ts <bot token> <sound files path> [save file path]
