@@ -1,7 +1,7 @@
 // Imports
 import fs from 'fs';
 import path from 'path';
-import { Client, IntentsBitField, Partials, VoiceBasedChannel, Message } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, VoiceBasedChannel, Message } from 'discord.js';
 import { joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection } from '@discordjs/voice';
 
 // Args
@@ -14,11 +14,22 @@ const saveFilePath   = process.argv[4];
 
 // Instantiate Discord client ('MESSAGE', 'CHANNEL', 'REACTION' partials needed for global reaction listening).
 const client  = new Client({
-	intents: new IntentsBitField(3276799),
+	intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.DirectMessages,
+    ],
 	partials: [Partials.Message, Partials.Channel, Partials.Reaction]
 });
 
 const audioPlayer = createAudioPlayer();
+
+audioPlayer.on('error', error => {
+    console.error(`Error: ${error.message}, ${error}`);
+});
 
 // Map of auto replies: if a message with content x is sent in a channel and
 // bot has an auto reply with key x, it will send a message with content
@@ -251,11 +262,13 @@ function attemptPlayingSoundFromText(text: string, voiceChannel: VoiceBasedChann
 
 function playSound(channel: VoiceBasedChannel, soundFilePath: string) {
     console.log('attempting to play ' + soundFilePath);
+
     const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: channel.guild.id,
         adapterCreator: channel.guild.voiceAdapterCreator,
     });
+
     const resource = createAudioResource(soundFilePath);
     audioPlayer.play(resource);
     connection.subscribe(audioPlayer);
