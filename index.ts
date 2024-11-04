@@ -1,8 +1,9 @@
 // Imports
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
 import { Client, GatewayIntentBits, Partials, VoiceBasedChannel, Message } from 'discord.js';
-import { joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection } from '@discordjs/voice';
+import { demuxProbe, joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, StreamType } from '@discordjs/voice';
 
 // Args
 if (process.argv.length < 4) {
@@ -79,6 +80,10 @@ client.on('messageReactionAdd', async (reactOrPartialReact, user) => {
 
 client.login(botToken);
 
+client.on('ready', () => {
+    console.log(`Logged in as ${client.user?.tag}!`);
+});
+
 // Play a sound if msg matches a sound file and sender is in a vc.
 function handleSoundMessages(msg: Message<boolean>) {
     // Return if sender is a bot.
@@ -94,10 +99,6 @@ function handleSoundMessages(msg: Message<boolean>) {
         msg.react('⏹️').then(() => msg.react('🔁'));
     }
 }
-
-client.on('ready', () => {
-    console.log(`Logged in as ${client.user?.tag}!`);
-});
 
 // Send an auto reply and returns true if msg.content matches
 // an entry in autoReplies and false otherwise.
@@ -127,6 +128,12 @@ async function handleCommands(msg: Message<boolean>) {
                 return true;
             }
         } catch (err) { console.log(err); }
+    }
+
+    else if (msg.content.startsWith('play ') && msg.member?.voice.channel) {
+        // Play youtube url in voice channel.
+        const url = msg.content.substring('play '.length);
+        playYoutubeUrl(msg.member.voice.channel, url);
     }
 
     else if ( ['stop', 'skip'].includes(msg.content) ) {
@@ -270,6 +277,42 @@ function playSound(channel: VoiceBasedChannel, soundFilePath: string) {
     });
 
     const resource = createAudioResource(soundFilePath);
+    audioPlayer.play(resource);
+    connection.subscribe(audioPlayer);
+}
+async function probeAndCreateResource(readableStream) {
+	const { stream, type } = await demuxProbe(readableStream);
+    console.log('detected stream type: ' + type);
+	return createAudioResource(stream, { inputType: type });
+}
+
+async function playYoutubeUrl(channel: VoiceBasedChannel, url: string) {
+    console.log('attempting to play youtube url ' + url);
+
+    const connection = joinVoiceChannel({
+        channelId: channel.id,
+        guildId: channel.guild.id,
+        adapterCreator: channel.guild.voiceAdapterCreator,
+    });
+
+    // Create audio resource from yt-dlp.
+    const process = spawn('yt-dlp', [
+        '--default-search', 'ytsearch',
+        '-f', 'bestaudio', 
+        '-o', '-', // Output to stdout
+        url,
+    ]);
+
+    process.stderr.on('data', (data) => {
+        console.error(`yt-dlp error: ${data}`);
+    });
+
+    if (!process.stdout) {
+        throw new Error('yt-dlp failed to start.');
+    }
+
+    const resource = await probeAndCreateResource(process.stdout);
+
     audioPlayer.play(resource);
     connection.subscribe(audioPlayer);
 }
