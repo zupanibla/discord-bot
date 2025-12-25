@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { Client, GatewayIntentBits, Partials, VoiceBasedChannel, Message } from 'discord.js';
-import { demuxProbe, joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, StreamType } from '@discordjs/voice';
+import { demuxProbe, joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, StreamType, VoiceConnectionStatus, entersState } from '@discordjs/voice';
 
 // Args
 if (process.argv.length < 4) {
@@ -80,7 +80,7 @@ client.on('messageReactionAdd', async (reactOrPartialReact, user) => {
 
 client.login(botToken);
 
-client.on('ready', () => {
+client.on('clientReady', () => {
     console.log(`Logged in as ${client.user?.tag}!`);
 });
 
@@ -267,23 +267,38 @@ function attemptPlayingSoundFromText(text: string, voiceChannel: VoiceBasedChann
     }
 }
 
-function playSound(channel: VoiceBasedChannel, soundFilePath: string) {
+async function playSound(channel: VoiceBasedChannel, soundFilePath: string) {
     console.log('attempting to play ' + soundFilePath);
 
     const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: channel.guild.id,
         adapterCreator: channel.guild.voiceAdapterCreator,
+        debug: true,
     });
 
-    const resource = createAudioResource(soundFilePath);
-    audioPlayer.play(resource);
-    connection.subscribe(audioPlayer);
-}
-async function probeAndCreateResource(readableStream) {
-	const { stream, type } = await demuxProbe(readableStream);
-    console.log('detected stream type: ' + type);
-	return createAudioResource(stream, { inputType: type });
+    connection.on('stateChange', (oldState, newState) => {
+        console.log(`Connection State: ${oldState.status} -> ${newState.status}`);
+    });
+
+    connection.on('error', (error) => {
+        console.error('Connection Error:', error);
+    });
+
+    try {
+        // Wait for the connection to reach the 'Ready' state within 10 seconds.
+        await entersState(connection, VoiceConnectionStatus.Ready, 10_000);
+        console.log(`Connected to voice in ${channel.guild.name}`);
+
+        const resource = createAudioResource(soundFilePath);
+        
+        audioPlayer.play(resource);
+        connection.subscribe(audioPlayer);
+
+    } catch (error) {
+        console.error('Voice connection failed to ready:', error);
+        connection.destroy();
+    }
 }
 
 async function playYoutubeUrl(channel: VoiceBasedChannel, url: string) {
@@ -315,6 +330,12 @@ async function playYoutubeUrl(channel: VoiceBasedChannel, url: string) {
 
     audioPlayer.play(resource);
     connection.subscribe(audioPlayer);
+}
+
+async function probeAndCreateResource(readableStream: any) {
+    const { stream, type } = await demuxProbe(readableStream);
+    console.log('detected stream type: ' + type);
+    return createAudioResource(stream, { inputType: type });
 }
 
 // Tries to save state to saveFilePath.
