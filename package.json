@@ -11,9 +11,10 @@
   "license": "ISC",
   "dependencies": {
     "@discordjs/voice": "^0.19.2",
+    "@types/libsodium-wrappers": "^0.7.14",
     "discord.js": "^14.16.3",
-    "opusscript": "^0.1.1",
-    "tweetnacl": "^1.0.3"
+    "libsodium-wrappers": "^0.8.4",
+    "opusscript": "^0.1.1"
   },
   "devDependencies": {
     "typescript": "^6.0.3"
