@@ -312,23 +312,32 @@ async function playYoutubeUrl(channel: VoiceBasedChannel, url: string) {
         adapterCreator: channel.guild.voiceAdapterCreator,
     });
 
+    try {
+        await entersState(connection, VoiceConnectionStatus.Ready, 10_000);
+        console.log(`Connected to voice in ${channel.guild.name}`);
+    } catch (error) {
+        console.error('Voice connection failed to ready:', error);
+        connection.destroy();
+        return;
+    }
+
     // Create audio resource from yt-dlp.
-    const process = spawn('yt-dlp', [
+    const ytdlp = spawn('yt-dlp', [
         '--default-search', 'ytsearch',
-        '-f', 'bestaudio', 
-        '-o', '-', // Output to stdout
+        '-f', 'bestaudio',
+        '-o', '-',
         url,
     ]);
 
-    process.stderr.on('data', (data) => {
+    ytdlp.stderr.on('data', (data) => {
         console.error(`yt-dlp error: ${data}`);
     });
 
-    if (!process.stdout) {
+    if (!ytdlp.stdout) {
         throw new Error('yt-dlp failed to start.');
     }
 
-    const resource = await probeAndCreateResource(process.stdout);
+    const resource = await probeAndCreateResource(ytdlp.stdout);
 
     audioPlayer.play(resource);
     connection.subscribe(audioPlayer);
