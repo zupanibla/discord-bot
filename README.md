@@ -13,6 +13,7 @@ A Discord bot for playing audio in voice channels. Play audio from YouTube URLs 
 
 - Node.js v19.6.0+  (recommend installing via [fnm](https://github.com/Schniz/fnm))
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) on your PATH
+- [ffmpeg](https://ffmpeg.org) on your PATH
 
 ## Installation
 
@@ -30,14 +31,19 @@ curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ~/.l
 chmod a+rx ~/.local/bin/yt-dlp
 ```
 
-**3. Clone and install dependencies**
+**3. Install ffmpeg**
+```bash
+sudo apt-get install -y ffmpeg
+```
+
+**4. Clone and install dependencies**
 ```bash
 git clone https://github.com/zupanibla/discord-bot
 cd discord-bot
 npm install
 ```
 
-**4. Run**
+**5. Run**
 ```bash
 npx ts-node index.ts <bot token> [sound files path] [save file path]
 ```
