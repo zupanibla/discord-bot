@@ -6,12 +6,12 @@ import { Client, GatewayIntentBits, Partials, VoiceBasedChannel, Message } from 
 import { demuxProbe, joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, StreamType, VoiceConnectionStatus, entersState } from '@discordjs/voice';
 
 // Args
-if (process.argv.length < 4) {
-    console.log('argument fromat is: <bot token> <sound files path> [save file path]');
+if (process.argv.length < 3) {
+    console.log('argument format is: <bot token> [--sounds <path>] [--save <path>]');
 }
 const botToken       = process.argv[2];
-const soundFilesPath = process.argv[3];
-const saveFilePath   = process.argv[4];
+const soundFilesPath = process.argv[process.argv.indexOf('--sounds') + 1] || undefined;
+const saveFilePath   = process.argv[process.argv.indexOf('--save') + 1] || undefined;
 
 // Instantiate Discord client ('MESSAGE', 'CHANNEL', 'REACTION' partials needed for global reaction listening).
 const client  = new Client({
@@ -115,6 +115,7 @@ function handleAutoReplies(msg: Message<boolean>) {
 async function handleCommands(msg: Message<boolean>) {
     if ( ['list', 'help', 'sounds', 'listsounds'].includes(msg.content) ) {
         // List sounds contained in the sound files directory (possibly in multiple messages).
+        if (!soundFilesPath) { msg.reply('No sound files path configured.'); return; }
         try {
             const text = fs.readdirSync(soundFilesPath).map(v => v.split('.')[0]).join(', ');
             const textChunks = chunkMessage(text, ' ');
@@ -146,6 +147,7 @@ async function handleCommands(msg: Message<boolean>) {
 
     else if ( msg.content.startsWith('listlatest') ) {
         // Reply with 'listLength' latest files from 'soundFilesPath' and their creation dates.
+        if (!soundFilesPath) { msg.reply('No sound files path configured.'); return; }
         const DEFAULT_LIST_LENGTH = 10;
 
         const messageInt = parseInt(msg.content.replace(/\D/g,''));
@@ -246,7 +248,7 @@ function chunkMessage(text: string, preferredSeparator: string) {
 function attemptPlayingSoundFromText(text: string, voiceChannel: VoiceBasedChannel): boolean {
     // Fetch soundName from message.
     const soundName = normalizeText(text);
-    if (!soundName) return false;
+    if (!soundName || !soundFilesPath) return false;
 
     // Attempt to find the corresponding sound file
     let soundFilePath: string | null = null;

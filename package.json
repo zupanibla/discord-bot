@@ -10,9 +10,12 @@
   "author": "Blaž",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^14.16.3",
     "@discordjs/voice": "0.18.0",
+    "discord.js": "^14.16.3",
     "opusscript": "^0.1.1",
     "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
   }
 }
