@@ -69,7 +69,7 @@ client.on('messageReactionAdd', async (reactOrPartialReact, user) => {
 
     const msg = (react.message.partial) ?
                 await react.message.fetch() :
-                react.message;
+                react.message as Message<boolean>;
 
     if (emoji === '⏹️') {
         audioPlayer.stop();
@@ -107,7 +107,7 @@ function handleAutoReplies(msg: Message<boolean>) {
     if (msg.author.bot) return;
 
     if (normalizeText(msg.content) in autoReplies) {
-        msg.channel.send(autoReplies[normalizeText(msg.content)]);
+        if ('send' in msg.channel) msg.channel.send(autoReplies[normalizeText(msg.content)]);
     }
 }
 
