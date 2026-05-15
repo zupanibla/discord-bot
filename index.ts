@@ -6,12 +6,14 @@ import { Client, GatewayIntentBits, Partials, VoiceBasedChannel, Message } from 
 import { demuxProbe, joinVoiceChannel, createAudioPlayer, createAudioResource, getVoiceConnection, StreamType, VoiceConnectionStatus, entersState } from '@discordjs/voice';
 
 // Args
-if (process.argv.length < 3) {
-    console.log('argument format is: <bot token> [--sounds <path>] [--save <path>]');
-}
-const botToken       = process.argv[2];
+const botToken       = process.env.DISCORD_TOKEN;
 const soundFilesPath = process.argv[process.argv.indexOf('--sounds') + 1] || undefined;
 const saveFilePath   = process.argv[process.argv.indexOf('--save') + 1] || undefined;
+
+if (!botToken) {
+    console.error('DISCORD_TOKEN environment variable is not set.');
+    process.exit(1);
+}
 
 // Instantiate Discord client ('MESSAGE', 'CHANNEL', 'REACTION' partials needed for global reaction listening).
 const client  = new Client({

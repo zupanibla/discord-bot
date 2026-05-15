@@ -43,14 +43,20 @@ cd discord-bot
 npm install
 ```
 
-**5. Run**
+**5. Create a `.env` file**
 ```bash
-npx ts-node index.ts <bot token> [sound files path] [save file path]
+echo 'DISCORD_TOKEN=your_token_here' > .env
 ```
 
-- `bot token` — your Discord bot token from the [Developer Portal](https://discord.com/developers/applications)
-- `sound files path` — (optional) directory containing `.mp3` or `.ogg` sound files
-- `save file path` — (optional) path to a JSON file for persisting auto-replies
+Get your token from the [Discord Developer Portal](https://discord.com/developers/applications).
+
+**6. Run**
+```bash
+node node_modules/.bin/tsx index.ts [--sounds <path>] [--save <path>]
+```
+
+- `--sounds <path>` — (optional) directory containing `.mp3` or `.ogg` sound files
+- `--save <path>` — (optional) path to a JSON file for persisting auto-replies
 
 ## Commands
 
