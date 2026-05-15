@@ -1,5 +1,3 @@
-# Pizza Dog
-
 A Discord bot for playing audio in voice channels. Play audio from YouTube URLs or local sound files, Set up automatic replies.
 
 ## Features
